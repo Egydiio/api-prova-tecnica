@@ -56,8 +56,14 @@ class ProductController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Product $product): JsonResponse
+    public function show($id): JsonResponse
     {
+        $product = Product::find($id);
+        if (!$product) {
+            return response()->json([
+                'message' => 'Product not found'
+            ], 404);
+        }
         return $this->successResponse(
             ProductResource::make($product),
             'Product retrieved successfully'

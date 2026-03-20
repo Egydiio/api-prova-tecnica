@@ -16,6 +16,15 @@ class ProductObserver
     }
 
     /**
+     * Handle the Product "show" event.
+     */
+
+    public function show(Product $product): void
+    {
+        Cache::flush();
+    }
+
+    /**
      * Handle the Product "updated" event.
      */
     public function updated(Product $product): void
