@@ -20,17 +20,24 @@ class ProductController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $cacheKey = 'products:' . md5(json_encode($request->all()));
+        $perPage = min($request->integer('per_page', 10), 100);
 
-        $products = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($request) {
-            return ProductResource::collection(
-                Product::query()
-                    ->when($request->name, fn($q) => $q->where('name', 'like', "%{$request->name}%"))
-                    ->when($request->min_price, fn($q) => $q->where('price', '>=', $request->min_price))
-                    ->when($request->max_price, fn($q) => $q->where('price', '<=', $request->max_price))
-                    ->when($request->stock_quantity, fn($q) => $q->where('stock_quantity', '>=', $request->stock_quantity))
-                    ->get()
-            )->resolve();
+        $cacheKey = 'products:' . md5(json_encode([
+                ...$request->all(),
+                'page' => $perPage
+            ]));
+
+        $products = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($request, $perPage) {
+
+            $query = Product::query()
+                ->when($request->name, fn($q) => $q->where('name', 'like', "%{$request->name}%"))
+                ->when($request->min_price, fn($q) => $q->where('price', '>=', $request->min_price))
+                ->when($request->max_price, fn($q) => $q->where('price', '<=', $request->max_price))
+                ->when($request->stock_quantity, fn($q) => $q->where('stock_quantity', '>=', $request->stock_quantity));
+
+            $paginated = $query->paginate($perPage);
+
+            return ProductResource::collection($paginated)->response()->getData(true);
         });
 
         return response()->json($products);
