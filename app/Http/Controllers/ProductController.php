@@ -8,22 +8,29 @@ use App\Models\Product;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Cache;
 
 class ProductController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request): AnonymousResourceCollection
+    public function index(Request $request): JsonResponse
     {
-        $products = Product::query()
-            ->when($request->name, fn($q) => $q->where('name', 'like', "%{$request->name}%"))
-            ->when($request->min_price, fn($q) => $q->where('price', '>=', $request->min_price))
-            ->when($request->max_price, fn($q) => $q->where('price', '<=', $request->max_price))
-            ->when($request->stock_quantity, fn($q) => $q->where('stock_quantity', '>=', $request->stock_quantity))
-            ->get();
+        $cacheKey = 'products:' . md5(json_encode($request->all()));
 
-        return ProductResource::collection($products);
+        $products = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($request) {
+            return ProductResource::collection(
+                Product::query()
+                    ->when($request->name, fn($q) => $q->where('name', 'like', "%{$request->name}%"))
+                    ->when($request->min_price, fn($q) => $q->where('price', '>=', $request->min_price))
+                    ->when($request->max_price, fn($q) => $q->where('price', '<=', $request->max_price))
+                    ->when($request->stock_quantity, fn($q) => $q->where('stock_quantity', '>=', $request->stock_quantity))
+                    ->get()
+            )->resolve();
+        });
+
+        return response()->json($products);
     }
 
     /**
@@ -45,10 +52,10 @@ class ProductController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Product $product): Product
+    public function update(Request $request, Product $product): ProductResource
     {
         $product->update($request->all());
-        return $product;
+        return ProductResource::make($product);
     }
 
     /**
