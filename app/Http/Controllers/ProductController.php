@@ -3,15 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreProductRequest;
+use App\Http\Requests\UpdateProductRequest;
 use App\Http\Resources\ProductResource;
 use App\Models\Product;
+use App\Traits\ApiResponseTrait;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Cache;
 
 class ProductController extends Controller
 {
+    use ApiResponseTrait;
+
     /**
      * Display a listing of the resource.
      */
@@ -36,26 +39,46 @@ class ProductController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreProductRequest $request): ProductResource
+    public function store(StoreProductRequest $request): JsonResponse
     {
-        return ProductResource::make(Product::create($request->validated()));
+        try {
+            $product = Product::create($request->validated());
+            return $this->successResponse(
+                ProductResource::make($product),
+                'Product created successfully',
+                201
+            );
+        } catch (\Throwable $th) {
+            return $this->errorResponse($th->getMessage(), 500);
+        }
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(Product $product): ProductResource
+    public function show(Product $product): JsonResponse
     {
-        return ProductResource::make($product);
+        return $this->successResponse(
+            ProductResource::make($product),
+            'Product retrieved successfully'
+        );
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Product $product): ProductResource
+    public function update(UpdateProductRequest  $request, Product $product): JsonResponse
     {
-        $product->update($request->all());
-        return ProductResource::make($product);
+        try {
+            $product->update($request->validated());
+            return $this->successResponse(
+                ProductResource::make($product),
+                'Product updated successfully',
+                200
+            );
+        } catch (\Throwable $th) {
+            return $this->errorResponse($th->getMessage(), 500);
+        }
     }
 
     /**
@@ -63,7 +86,11 @@ class ProductController extends Controller
      */
     public function destroy(Product $product): JsonResponse
     {
-        $product->delete();
-        return response()->json(null, 204);
+        try {
+            $product->delete();
+            return $this->successResponse(null, 'Product deleted successfully');
+        } catch (\Throwable $th) {
+            return $this->errorResponse($th->getMessage(), 500);
+        }
     }
 }
